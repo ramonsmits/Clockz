@@ -30,5 +30,13 @@ namespace Clockz.Extensions
         {
             return Epoch.AddSeconds(secondsSindsEpoch);
         }
+
+        /// <summary>
+        /// Rounds a datetime based the interval specified.
+        /// </summary>
+		public static DateTime Round(this DateTime dt, TimeSpan d)
+		{
+			return new DateTime(((dt.Ticks + d.Ticks - 1) / d.Ticks) * d.Ticks);
+		}
     }
 }
