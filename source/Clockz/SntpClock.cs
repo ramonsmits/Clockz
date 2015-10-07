@@ -19,7 +19,7 @@ namespace Clockz
             {
                 Client.Connect(false);
                 TimeSpan span = (Client.ReceiveTimestamp - Client.OriginateTimestamp) + (Client.TransmitTimestamp - Client.DestinationTimestamp);
-                return DateTime.Now.AddMilliseconds(span.TotalMilliseconds / 2).ToUniversalTime();
+                return DateTime.UtcNow.AddMilliseconds(span.TotalMilliseconds / 2);
             }
         }
 
