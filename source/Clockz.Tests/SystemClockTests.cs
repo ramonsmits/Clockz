@@ -27,5 +27,13 @@ namespace Clockz.Tests
         {
             Console.WriteLine("SystemEvents_TimeChanged");
         }
+
+        [Test]
+        public void Get()
+        {
+            var net = DateTime.UtcNow;
+            var system = SystemClock.Win32.Get();
+            Assert.AreEqual((double)net.Ticks, (double)system.Ticks, TimeSpan.TicksPerMillisecond);
+        }
     }
 }

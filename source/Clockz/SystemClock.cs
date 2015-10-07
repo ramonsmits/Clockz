@@ -46,22 +46,48 @@ namespace Clockz
             [DllImport("kernel32.dll", EntryPoint = "SetSystemTime", SetLastError = true)]
             private static extern uint SetSystemTime(ref SYSTEMTIME st);
 
-            public static void Set(DateTime v)
+            public static void SetUtc(DateTime timestamp)
             {
-                if (v.Kind != DateTimeKind.Utc) throw new ArgumentException("Kind is not Utc", "v");
+                if (timestamp.Kind != DateTimeKind.Utc) throw new ArgumentException("Kind is not Utc", "v");
 
                 SYSTEMTIME time = new SYSTEMTIME
                 {
-                    Year = (ushort)v.Year,
-                    Month = (ushort)v.Month,
-                    Day = (ushort)v.Day,
-                    Hour = (ushort)v.Hour,
-                    Minute = (ushort)v.Minute,
-                    Second = (ushort)v.Second,
-                    Milisecond = (ushort)v.Millisecond,
+                    Year = (ushort)timestamp.Year,
+                    Month = (ushort)timestamp.Month,
+                    Day = (ushort)timestamp.Day,
+                    Hour = (ushort)timestamp.Hour,
+                    Minute = (ushort)timestamp.Minute,
+                    Second = (ushort)timestamp.Second,
+                    Milisecond = (ushort)timestamp.Millisecond,
                 };
 
                 if (0 == SetSystemTime(ref time)) throw new InvalidOperationException("Failed to set time.");
+            }
+
+
+            [DllImport("kernel32.dll")]
+            private static extern void GetSystemTime(out SYSTEMTIME lpSystemTime);
+
+            /// <summary>
+            /// Returns the current system time. This should return the same value as <see cref="System.DateTime.UtcNow"/>.
+            /// </summary>
+            /// <returns></returns>
+            public static DateTime GetUtc()
+            {
+                SYSTEMTIME time;
+
+                GetSystemTime(out time);
+
+                return new DateTime(
+                    time.Year,
+                    time.Month,
+                    time.Day,
+                    time.Hour,
+                    time.Minute,
+                    time.Second,
+                    DateTimeKind.Utc
+                    )
+                    .AddMilliseconds(time.Milisecond);
             }
         }
     }
