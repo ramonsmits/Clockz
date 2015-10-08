@@ -1,23 +1,34 @@
 ﻿using System;
+using System.Configuration;
 
 namespace Clockz
 {
     public class SntpClock : BaseClock
     {
-        readonly InternetTime.SNTPClient Client;
+        private static readonly string DefaultNtpServer = ConfigurationManager.AppSettings["NtpServer"] ?? "pool.ntp.org";
+        readonly InternetTime.SntpClient Client;
         readonly string Host;
 
-        public SntpClock(string host)
+        public SntpClock() : this(DefaultNtpServer)
+        {
+        }
+
+        public SntpClock(string host, bool jit = false)
         {
             Host = host;
-            Client = new InternetTime.SNTPClient(host);
+            Client = new InternetTime.SntpClient(host);
+            if (jit)
+            {
+                var warmup = UtcNow;
+            }
         }
 
         public override DateTime UtcNow
         {
             get
             {
-                Client.Connect(false);
+                Client.Connect();
+
                 TimeSpan span = (Client.ReceiveTimestamp - Client.OriginateTimestamp) + (Client.TransmitTimestamp - Client.DestinationTimestamp);
                 return DateTime.UtcNow.AddMilliseconds(span.TotalMilliseconds / 2);
             }

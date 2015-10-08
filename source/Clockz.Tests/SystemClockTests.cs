@@ -15,7 +15,7 @@ namespace Clockz.Tests
             try
             {
                 var now = DateTime.UtcNow;
-                SystemClock.Win32.Set(now);
+                SystemClock.Win32.SetUtc(now);
             }
             finally
             {
@@ -32,7 +32,7 @@ namespace Clockz.Tests
         public void Get()
         {
             var net = DateTime.UtcNow;
-            var system = SystemClock.Win32.Get();
+            var system = SystemClock.Win32.GetUtc();
             Assert.AreEqual((double)net.Ticks, (double)system.Ticks, TimeSpan.TicksPerMillisecond);
         }
     }

@@ -57,15 +57,18 @@
  * - First public release.
  */
 
+using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+
 namespace InternetTime
 {
     using System;
     using System.Net;
     using System.Net.Sockets;
-    using System.Runtime.InteropServices;
 
     // Leap indicator field values
-    public enum _LeapIndicator
+    public enum LeapIndicator
     {
         NoWarning,		// 0 - No warning
         LastMinute61,	// 1 - Last minute has 61 seconds
@@ -74,7 +77,7 @@ namespace InternetTime
     }
 
     //Mode field values
-    public enum _Mode
+    public enum Mode
     {
         SymmetricActive,	// 1 - Symmetric active
         SymmetricPassive,	// 2 - Symmetric pasive
@@ -85,7 +88,7 @@ namespace InternetTime
     }
 
     // Stratum field values
-    public enum _Stratum
+    public enum Stratum
     {
         Unspecified,			// 0 - unspecified or unavailable
         PrimaryReference,		// 1 - primary reference (e.g. radio-clock)
@@ -193,35 +196,35 @@ namespace InternetTime
     /// 
     /// </summary>
 
-    public class SNTPClient
+    public class SntpClient
     {
         // SNTP Data Structure Length
-        private const byte SNTPDataLength = 48;
+        private const byte SntpDataLength = 48;
         // SNTP Data Structure (as described in RFC 2030)
-        byte[] SNTPData = new byte[SNTPDataLength];
+        byte[] _sntpData = new byte[SntpDataLength];
 
         // Offset constants for timestamps in the data structure
-        private const byte offReferenceID = 12;
-        private const byte offReferenceTimestamp = 16;
-        private const byte offOriginateTimestamp = 24;
-        private const byte offReceiveTimestamp = 32;
-        private const byte offTransmitTimestamp = 40;
+        private const byte OffReferenceId = 12;
+        private const byte OffReferenceTimestamp = 16;
+        private const byte OffOriginateTimestamp = 24;
+        private const byte OffReceiveTimestamp = 32;
+        private const byte OffTransmitTimestamp = 40;
 
         // Leap Indicator
-        public _LeapIndicator LeapIndicator
+        public LeapIndicator LeapIndicator
         {
             get
             {
                 // Isolate the two most significant bits
-                byte val = (byte)(SNTPData[0] >> 6);
+                byte val = (byte)(_sntpData[0] >> 6);
                 switch (val)
                 {
-                    case 0: return _LeapIndicator.NoWarning;
-                    case 1: return _LeapIndicator.LastMinute61;
-                    case 2: return _LeapIndicator.LastMinute59;
+                    case 0: return LeapIndicator.NoWarning;
+                    case 1: return LeapIndicator.LastMinute61;
+                    case 2: return LeapIndicator.LastMinute59;
                     case 3: goto default;
                     default:
-                        return _LeapIndicator.Alarm;
+                        return LeapIndicator.Alarm;
                 }
             }
         }
@@ -232,133 +235,129 @@ namespace InternetTime
             get
             {
                 // Isolate bits 3 - 5
-                byte val = (byte)((SNTPData[0] & 0x38) >> 3);
+                byte val = (byte)((_sntpData[0] & 0x38) >> 3);
                 return val;
             }
         }
 
         // Mode
-        public _Mode Mode
+        public Mode Mode
         {
             get
             {
                 // Isolate bits 0 - 3
-                byte val = (byte)(SNTPData[0] & 0x7);
+                byte val = (byte)(_sntpData[0] & 0x7);
                 switch (val)
                 {
                     case 0: goto default;
                     case 6: goto default;
                     case 7: goto default;
                     default:
-                        return _Mode.Unknown;
+                        return Mode.Unknown;
                     case 1:
-                        return _Mode.SymmetricActive;
+                        return Mode.SymmetricActive;
                     case 2:
-                        return _Mode.SymmetricPassive;
+                        return Mode.SymmetricPassive;
                     case 3:
-                        return _Mode.Client;
+                        return Mode.Client;
                     case 4:
-                        return _Mode.Server;
+                        return Mode.Server;
                     case 5:
-                        return _Mode.Broadcast;
+                        return Mode.Broadcast;
                 }
             }
         }
 
         // Stratum
-        public _Stratum Stratum
+        public Stratum Stratum
         {
             get
             {
-                byte val = (byte)SNTPData[1];
-                if (val == 0) return _Stratum.Unspecified;
-                else if (val == 1) return _Stratum.PrimaryReference;
-                else if (val <= 15) return _Stratum.SecondaryReference;
-                else return _Stratum.Reserved;
+                byte val = _sntpData[1];
+                if (val == 0) return Stratum.Unspecified;
+                if (val == 1) return Stratum.PrimaryReference;
+                if (val <= 15) return Stratum.SecondaryReference;
+                return Stratum.Reserved;
             }
         }
 
         // Poll Interval (in seconds)
-        public uint PollInterval
+        public uint PollIntervalSeconds
         {
             get
             {
                 // Thanks to Jim Hollenhorst <hollenho@attbi.com>
-                return (uint)(Math.Pow(2, (sbyte)SNTPData[2]));
+                return (uint)(Math.Pow(2, (sbyte)_sntpData[2]));
             }
         }
 
         // Precision (in seconds)
-        public double Precision
+        public double PrecisionSeconds
         {
             get
             {
                 // Thanks to Jim Hollenhorst <hollenho@attbi.com>
-                return (Math.Pow(2, (sbyte)SNTPData[3]));
+                return (Math.Pow(2, (sbyte)_sntpData[3]));
             }
         }
 
         // Root Delay (in milliseconds)
-        public double RootDelay
+        public double RootDelayMilliseconds
         {
             get
             {
-                int temp = 0;
-                temp = 256 * (256 * (256 * SNTPData[4] + SNTPData[5]) + SNTPData[6]) + SNTPData[7];
+                int temp = 256 * (256 * (256 * _sntpData[4] + _sntpData[5]) + _sntpData[6]) + _sntpData[7];
                 return 1000 * (((double)temp) / 0x10000);
             }
         }
 
         // Root Dispersion (in milliseconds)
-        public double RootDispersion
+        public double RootDispersionMilliseconds
         {
             get
             {
-                int temp = 0;
-                temp = 256 * (256 * (256 * SNTPData[8] + SNTPData[9]) + SNTPData[10]) + SNTPData[11];
+                int temp = 256 * (256 * (256 * _sntpData[8] + _sntpData[9]) + _sntpData[10]) + _sntpData[11];
                 return 1000 * (((double)temp) / 0x10000);
             }
         }
 
         // Reference Identifier
-        public string ReferenceID
+        public string ReferenceId
         {
             get
             {
                 string val = "";
                 switch (Stratum)
                 {
-                    case _Stratum.Unspecified:
-                        goto case _Stratum.PrimaryReference;
-                    case _Stratum.PrimaryReference:
-                        val += (char)SNTPData[offReferenceID + 0];
-                        val += (char)SNTPData[offReferenceID + 1];
-                        val += (char)SNTPData[offReferenceID + 2];
-                        val += (char)SNTPData[offReferenceID + 3];
+                    case Stratum.Unspecified:
+                        goto case Stratum.PrimaryReference;
+                    case Stratum.PrimaryReference:
+                        val += (char)_sntpData[OffReferenceId + 0];
+                        val += (char)_sntpData[OffReferenceId + 1];
+                        val += (char)_sntpData[OffReferenceId + 2];
+                        val += (char)_sntpData[OffReferenceId + 3];
                         break;
-                    case _Stratum.SecondaryReference:
+                    case Stratum.SecondaryReference:
                         switch (VersionNumber)
                         {
                             case 3:	// Version 3, Reference ID is an IPv4 address
-                                string Address = SNTPData[offReferenceID + 0].ToString() + "." +
-                                                 SNTPData[offReferenceID + 1].ToString() + "." +
-                                                 SNTPData[offReferenceID + 2].ToString() + "." +
-                                                 SNTPData[offReferenceID + 3].ToString();
+                                string address = _sntpData[OffReferenceId + 0] + "." +
+                                                 _sntpData[OffReferenceId + 1] + "." +
+                                                 _sntpData[OffReferenceId + 2] + "." +
+                                                 _sntpData[OffReferenceId + 3];
                                 try
                                 {
-                                    IPHostEntry Host = Dns.GetHostEntry(Address);
-                                    val = Host.HostName + " (" + Address + ")";
+                                    IPHostEntry host = Dns.GetHostEntry(address);
+                                    val = host.HostName + " (" + address + ")";
                                 }
-                                catch (Exception)
+                                catch (SocketException)
                                 {
                                     val = "N/A";
                                 }
                                 break;
                             case 4: // Version 4, Reference ID is the timestamp of last update
-                                DateTime time = ComputeDate(GetMilliSeconds(offReferenceID));
-                                // Take care of the time zone
-                                TimeSpan offspan = TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now);
-                                val = (time + offspan).ToString();
+                                DateTime time = ComputeDate(GetMilliseconds(OffReferenceId));
+                                val = (time).ToString(CultureInfo.InvariantCulture);
                                 break;
                             default:
                                 val = "N/A";
@@ -372,14 +371,12 @@ namespace InternetTime
         }
 
         // Reference Timestamp
-        public DateTime ReferenceTimestamp
+        public DateTime ReferenceTimestampUtc
         {
             get
             {
-                DateTime time = ComputeDate(GetMilliSeconds(offReferenceTimestamp));
-                // Take care of the time zone
-                TimeSpan offspan = TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now);
-                return time + offspan;
+                DateTime time = ComputeDate(GetMilliseconds(OffReferenceTimestamp));
+                return time;
             }
         }
 
@@ -388,7 +385,7 @@ namespace InternetTime
         {
             get
             {
-                return ComputeDate(GetMilliSeconds(offOriginateTimestamp));
+                return ComputeDate(GetMilliseconds(OffOriginateTimestamp));
             }
         }
 
@@ -400,10 +397,8 @@ namespace InternetTime
         {
             get
             {
-                DateTime time = ComputeDate(GetMilliSeconds(offReceiveTimestamp));
-                // Take care of the time zone
-                TimeSpan offspan = TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now);
-                return time + offspan;
+                DateTime time = ComputeDate(GetMilliseconds(OffReceiveTimestamp));
+                return time;
             }
         }
 
@@ -415,92 +410,89 @@ namespace InternetTime
         {
             get
             {
-                DateTime time = ComputeDate(GetMilliSeconds(offTransmitTimestamp));
-                // Take care of the time zone
-                TimeSpan offspan = TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now);
-                return time + offspan;
+                DateTime time = ComputeDate(GetMilliseconds(OffTransmitTimestamp));
+                return time;
             }
             set
             {
-                SetDate(offTransmitTimestamp, value);
+                SetDate(OffTransmitTimestamp, value);
             }
         }
 
         // Destination Timestamp (T4)
         /// <summary>
-        /// Local time when connected.
+        /// Local UTC time, set when sync completes.
         /// </summary>
-        public DateTime DestinationTimestamp;
+        public DateTime DestinationTimestamp { get; private set; }
 
         // Round trip delay (in milliseconds)
-        public int RoundTripDelay
+        public double RoundTripDelayMilliseconds
         {
             get
             {
                 // Thanks to DNH <dnharris@csrlink.net>
                 TimeSpan span = (DestinationTimestamp - OriginateTimestamp) - (ReceiveTimestamp - TransmitTimestamp);
-                return (int)span.TotalMilliseconds;
+                return span.TotalMilliseconds;
             }
         }
 
         // Local clock offset (in milliseconds)
-        public int LocalClockOffset
+        public double LocalClockOffsetMilliseconds
         {
             get
             {
                 // Thanks to DNH <dnharris@csrlink.net>
                 TimeSpan span = (ReceiveTimestamp - OriginateTimestamp) + (TransmitTimestamp - DestinationTimestamp);
-                return (int)(span.TotalMilliseconds / 2);
+                return span.TotalMilliseconds / 2;
             }
         }
 
         // Compute date, given the number of milliseconds since January 1, 1900
         private DateTime ComputeDate(ulong milliseconds)
         {
-            TimeSpan span = TimeSpan.FromMilliseconds((double)milliseconds);
-            DateTime time = new DateTime(1900, 1, 1);
-            time += span;
-            return time;
+            TimeSpan span = TimeSpan.FromMilliseconds(milliseconds);
+            return _startOfCentury + span;
         }
 
         // Compute the number of milliseconds, given the offset of a 8-byte array
-        private ulong GetMilliSeconds(byte offset)
+        private ulong GetMilliseconds(byte offset)
         {
             ulong intpart = 0, fractpart = 0;
 
             for (int i = 0; i <= 3; i++)
             {
-                intpart = 256 * intpart + SNTPData[offset + i];
+                intpart = 256 * intpart + _sntpData[offset + i];
             }
             for (int i = 4; i <= 7; i++)
             {
-                fractpart = 256 * fractpart + SNTPData[offset + i];
+                fractpart = 256 * fractpart + _sntpData[offset + i];
             }
             ulong milliseconds = intpart * 1000 + (fractpart * 1000) / 0x100000000L;
             return milliseconds;
         }
 
+        readonly DateTime _startOfCentury = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);	// January 1, 1900 12:00 AM
+
         // Compute the 8-byte array, given the date
         private void SetDate(byte offset, DateTime date)
         {
-            ulong intpart = 0, fractpart = 0;
-            DateTime StartOfCentury = new DateTime(1900, 1, 1, 0, 0, 0);	// January 1, 1900 12:00 AM
+            ulong intPart, fractPart;
 
-            ulong milliseconds = (ulong)(date - StartOfCentury).TotalMilliseconds;
-            intpart = milliseconds / 1000;
-            fractpart = ((milliseconds % 1000) * 0x100000000L) / 1000;
+            ulong milliseconds = (ulong)(date - _startOfCentury).TotalMilliseconds;
+            intPart = milliseconds / 1000;
+            fractPart = ((milliseconds % 1000) * 0x100000000L) / 1000;
 
-            ulong temp = intpart;
+            ulong temp = intPart;
             for (int i = 3; i >= 0; i--)
             {
-                SNTPData[offset + i] = (byte)(temp % 256);
+                _sntpData[offset + i] = (byte)(temp % 256);
                 temp = temp / 256;
             }
 
-            temp = fractpart;
+            temp = fractPart;
             for (int i = 7; i >= 4; i--)
             {
-                SNTPData[offset + i] = (byte)(temp % 256);
+                _sntpData[offset + i] = (byte)(temp % 256);
                 temp = temp / 256;
             }
         }
@@ -509,182 +501,127 @@ namespace InternetTime
         private void Initialize()
         {
             // Set version number to 4 and Mode to 3 (client)
-            SNTPData[0] = 0x1B;
+            _sntpData[0] = 0x1B;
             // Initialize all other fields with 0
             for (int i = 1; i < 48; i++)
             {
-                SNTPData[i] = 0;
+                _sntpData[i] = 0;
             }
-            // Initialize the transmit timestamp
-            TransmitTimestamp = DateTime.Now;
         }
 
-        public SNTPClient(string host)
+        public SntpClient(string host, int port = NtpPort, bool updateAddress= false)
         {
-            TimeServer = host;
+            _port = port;
+            _timeServer = host;
+            _updateAddress = updateAddress;
+            // Resolve server address
+            ResolveAddress();
         }
+
+        public SntpClient(IPAddress address, int port = NtpPort)
+        {
+            _port = port;
+            _timeServer = "NA";
+            _epHost = new IPEndPoint(address, _port);
+        }
+
+        void ResolveAddress()
+        {
+            IPHostEntry hostadd = Dns.GetHostEntry(_timeServer);
+            _epHost = new IPEndPoint(hostadd.AddressList[0], _port);
+        }
+
+        private const int NtpPort = 123;
+        private const int SocketTimeout = 5000;
+        private readonly int _port;
+        private IPEndPoint _epHost;
+        private readonly bool _updateAddress;
 
         // Connect to the time server and update system time
-        public void Connect(bool UpdateSystemTime)
+        public void Connect()
         {
             try
             {
-                // Resolve server address
-                IPHostEntry hostadd = Dns.GetHostEntry(TimeServer);
-                IPEndPoint EPhost = new IPEndPoint(hostadd.AddressList[0], 123);
+                if (_updateAddress)
+                {
+                    ResolveAddress();
+                }
 
                 //Connect the time server
-                using (UdpClient TimeSocket = new UdpClient())
+                using (UdpClient timeSocket = new UdpClient())
                 {
-                    TimeSocket.Connect(EPhost);
+                    timeSocket.Client.ReceiveTimeout = SocketTimeout;
+                    timeSocket.Client.SendTimeout = SocketTimeout;
 
+                    timeSocket.Connect(_epHost);
                     // Initialize data structure
                     Initialize();
-                    TimeSocket.Send(SNTPData, SNTPData.Length);
-                    SNTPData = TimeSocket.Receive(ref EPhost);
+                    // Initialize the transmit timestamp
+                    TransmitTimestamp = DateTime.UtcNow;
+                    timeSocket.Send(_sntpData, _sntpData.Length);
+                    _sntpData = timeSocket.Receive(ref _epHost);
                     if (!IsResponseValid())
                     {
-                        throw new Exception("Invalid response from " + TimeServer);
+                        throw new Exception("Invalid response from " + _timeServer);
                     }
 
-                    DestinationTimestamp = DateTime.Now;
+                    DestinationTimestamp = DateTime.UtcNow;
                 }
             }
-            catch (SocketException e)
+            catch (Exception e)
             {
-                throw new Exception(e.Message);
-            }
-
-            // Update system time
-            if (UpdateSystemTime)
-            {
-                SetTime();
+                throw new InvalidOperationException("Error retrieving NTP timestamp.", e);
             }
         }
-
         // Check if the response from server is valid
         public bool IsResponseValid()
         {
-            if (SNTPData.Length < SNTPDataLength || Mode != _Mode.Server)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
+            return _sntpData.Length >= SntpDataLength && Mode == Mode.Server;
         }
 
         // Converts the object to string
         public override string ToString()
         {
-            string str;
+            var str = new StringBuilder();
 
-            str = "Leap Indicator: ";
+            str.Append("Leap Indicator: ");
             switch (LeapIndicator)
             {
-                case _LeapIndicator.NoWarning:
-                    str += "No warning";
+                case LeapIndicator.NoWarning:
+                    str.Append("No warning");
                     break;
-                case _LeapIndicator.LastMinute61:
-                    str += "Last minute has 61 seconds";
+                case LeapIndicator.LastMinute61:
+                    str.Append("Last minute has 61 seconds");
                     break;
-                case _LeapIndicator.LastMinute59:
-                    str += "Last minute has 59 seconds";
+                case LeapIndicator.LastMinute59:
+                    str.Append("Last minute has 59 seconds");
                     break;
-                case _LeapIndicator.Alarm:
-                    str += "Alarm Condition (clock not synchronized)";
-                    break;
-            }
-            str += "\r\nVersion number: " + VersionNumber.ToString() + "\r\n";
-            str += "Mode: ";
-            switch (Mode)
-            {
-                case _Mode.Unknown:
-                    str += "Unknown";
-                    break;
-                case _Mode.SymmetricActive:
-                    str += "Symmetric Active";
-                    break;
-                case _Mode.SymmetricPassive:
-                    str += "Symmetric Pasive";
-                    break;
-                case _Mode.Client:
-                    str += "Client";
-                    break;
-                case _Mode.Server:
-                    str += "Server";
-                    break;
-                case _Mode.Broadcast:
-                    str += "Broadcast";
+                case LeapIndicator.Alarm:
+                    str.Append("Alarm Condition (clock not synchronized)");
                     break;
             }
-            str += "\r\nStratum: ";
-            switch (Stratum)
-            {
-                case _Stratum.Unspecified:
-                case _Stratum.Reserved:
-                    str += "Unspecified";
-                    break;
-                case _Stratum.PrimaryReference:
-                    str += "Primary Reference";
-                    break;
-                case _Stratum.SecondaryReference:
-                    str += "Secondary Reference";
-                    break;
-            }
-            str += "\r\nLocal time: " + TransmitTimestamp.ToString();
-            str += "\r\nPrecision: " + Precision.ToString() + " s";
-            str += "\r\nPoll Interval: " + PollInterval.ToString() + " s";
-            str += "\r\nReference ID: " + ReferenceID.ToString();
-            str += "\r\nRoot Delay: " + RootDelay.ToString() + " ms";
-            str += "\r\nRoot Dispersion: " + RootDispersion.ToString() + " ms";
-            str += "\r\nRound Trip Delay: " + RoundTripDelay.ToString() + " ms";
-            str += "\r\nLocal Clock Offset: " + LocalClockOffset.ToString() + " ms";
-            str += "\r\n";
+            str.AppendLine();
+            str.AppendFormat("Server            : {0}:{1} ({2})", _timeServer, _port, _epHost).AppendLine();
+            str.AppendFormat("Version number    : {0}", VersionNumber).AppendLine();
+            str.AppendFormat("Mode              : {0}", Mode).AppendLine();
+            str.AppendFormat("Stratum           : {0}", Stratum).AppendLine();
+            str.AppendFormat("Local time        : " + TransmitTimestamp).AppendLine();
+            str.AppendFormat("Precision         : {0:N} µs", PrecisionSeconds * 1000 * 1000).AppendLine();
+            str.AppendFormat("Poll Interval     : {0} s", PollIntervalSeconds).AppendLine();
+            str.AppendFormat("Reference ID      : {0}", ReferenceId).AppendLine();
+            str.AppendFormat("Root Delay        : {0} ms", RootDelayMilliseconds).AppendLine();
+            str.AppendFormat("Root Dispersion   : {0} ms", RootDispersionMilliseconds).AppendLine();
+            str.AppendFormat("Round Trip Delay  : {0} ms", RoundTripDelayMilliseconds).AppendLine();
+            str.AppendFormat("Local Clock Offset: {0} µs", LocalClockOffsetMilliseconds * 1000).AppendLine();
+            str.AppendLine();
+            str.AppendFormat("ReceiveTimestamp    : {0:O} ({1})", ReceiveTimestamp, ReceiveTimestamp.Kind).AppendLine();
+            str.AppendFormat("OriginateTimestamp  : {0:O} ({1})", OriginateTimestamp, OriginateTimestamp.Kind).AppendLine();
+            str.AppendFormat("TransmitTimestamp   : {0:O} ({1})", TransmitTimestamp, TransmitTimestamp.Kind).AppendLine();
+            str.AppendFormat("DestinationTimestamp: {0:O} ({1})", DestinationTimestamp, DestinationTimestamp.Kind).AppendLine();
 
-            return str;
+            return str.ToString();
         }
-
-        // SYSTEMTIME structure used by SetSystemTime
-        [StructLayoutAttribute(LayoutKind.Sequential)]
-        private struct SYSTEMTIME
-        {
-            public short year;
-            public short month;
-            public short dayOfWeek;
-            public short day;
-            public short hour;
-            public short minute;
-            public short second;
-            public short milliseconds;
-        }
-
-        [DllImport("kernel32.dll")]
-        static extern bool SetLocalTime(ref SYSTEMTIME time);
-
-
-        // Set system time according to transmit timestamp
-        private void SetTime()
-        {
-            SYSTEMTIME st;
-
-            // Thanks to Jim Hollenhorst <hollenho@attbi.com>
-            DateTime trts = DateTime.Now.AddMilliseconds(LocalClockOffset);
-
-            st.year = (short)trts.Year;
-            st.month = (short)trts.Month;
-            st.dayOfWeek = (short)trts.DayOfWeek;
-            st.day = (short)trts.Day;
-            st.hour = (short)trts.Hour;
-            st.minute = (short)trts.Minute;
-            st.second = (short)trts.Second;
-            st.milliseconds = (short)trts.Millisecond;
-
-            SetLocalTime(ref st);
-        }
-
         // The URL of the time server we're connecting to
-        private string TimeServer;
+        private readonly string _timeServer;
     }
 }
