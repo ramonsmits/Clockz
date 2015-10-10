@@ -1,43 +1,28 @@
-ï»¿/*
+/*
  * A C# SNTP Client
  * 
- * Copyright (C)2001-2003 Valer BOCAN <vbocan@dataman.ro>
- * All Rights Reserved
- * 
- * You may download the latest version from http://www.dataman.ro
- * Last modified: September 20, 2003
+ * Copyright (C)2001-2011 Valer BOCAN, PhD <valer@bocan.ro>
+ * Last modified: November 20, 2011
  *  
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, and/or sell copies of the Software, and to permit persons
- * to whom the Software is furnished to do so, provided that the above
- * copyright notice(s) and this permission notice appear in all copies of
- * the Software and that both the above copyright notice(s) and this
- * permission notice appear in supporting documentation.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
- * OF THIRD PARTY RIGHTS. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * HOLDERS INCLUDED IN THIS NOTICE BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL
- * INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- *
- * Disclaimer
- * ----------
- * Although reasonable care has been taken to ensure the correctness of this
- * implementation, this code should never be used in any application without
- * proper verification and testing. I disclaim all liability and responsibility
- * to any person or entity with respect to any loss or damage caused, or alleged
- * to be caused, directly or indirectly, by the use of this SNTPClient class.
- *
  * Comments, bugs and suggestions are welcome.
  *
  * Update history:
+ * 
+ * November 20, 2011
+ * - Added the SNTP_WindowsMobile compilation directive for discrimination between Windows Desktop and Windows Mobile
+ * 
+ * - Altered Connect() method to provide a socket timeout (Jason Garrett - jason.garrett@hotmail.com)
+ *    - Credit goes to Kyle Jones who posted this improved Connect() method on
+ *      http://objectmix.com/dotnet/98919-socket-receive-timeout-compact-framework.html
+ *      on 10 Mar 2009.
+ * - Added <summary> tags to class methods and attributes
+ * 
+ * May 2, 2011
+ * - RoundTripDelay and LocalClockOffset now return a double instead of an integer to avoid overflows
+ *   when the computer clock is way off.
+ * - Added the DllImport directive for Windows Mobile 6.0
+ *   Thanks to André Rippstein <andre@rippstein.net>
+ * 
  * September 20, 2003
  * - Renamed the class from NTPClient to SNTPClient.
  * - Fixed the RoundTripDelay and LocalClockOffset properties.
@@ -57,14 +42,20 @@
  * - First public release.
  */
 
+// Uncomment the line below if compiling for Windows Mobile
+//#define SNTP_WindowsMobile
+
 namespace InternetTime
 {
     using System;
     using System.Net;
     using System.Net.Sockets;
     using System.Runtime.InteropServices;
+    using System.Threading;
 
-    // Leap indicator field values
+    /// <summary>
+    /// Leap indicator field values
+    /// </summary>
     public enum _LeapIndicator
     {
         NoWarning,		// 0 - No warning
@@ -73,7 +64,9 @@ namespace InternetTime
         Alarm			// 3 - Alarm condition (clock not synchronized)
     }
 
-    //Mode field values
+    /// <summary>
+    /// Mode field values
+    /// </summary>
     public enum _Mode
     {
         SymmetricActive,	// 1 - Symmetric active
@@ -84,7 +77,9 @@ namespace InternetTime
         Unknown				// 0, 6, 7 - Reserved
     }
 
-    // Stratum field values
+    /// <summary>
+    /// Stratum field values
+    /// </summary>
     public enum _Stratum
     {
         Unspecified,			// 0 - unspecified or unavailable
@@ -197,6 +192,7 @@ namespace InternetTime
     {
         // SNTP Data Structure Length
         private const byte SNTPDataLength = 48;
+
         // SNTP Data Structure (as described in RFC 2030)
         byte[] SNTPData = new byte[SNTPDataLength];
 
@@ -207,7 +203,10 @@ namespace InternetTime
         private const byte offReceiveTimestamp = 32;
         private const byte offTransmitTimestamp = 40;
 
-        // Leap Indicator
+        /// <summary>
+        /// Warns of an impending leap second to be inserted/deleted in the last
+        /// minute of the current day. (See the _LeapIndicator enum)
+        /// </summary>
         public _LeapIndicator LeapIndicator
         {
             get
@@ -226,7 +225,9 @@ namespace InternetTime
             }
         }
 
-        // Version Number
+        /// <summary>
+        /// Version number of the protocol (3 or 4).
+        /// </summary>
         public byte VersionNumber
         {
             get
@@ -237,7 +238,9 @@ namespace InternetTime
             }
         }
 
-        // Mode
+        /// <summary>
+        /// Returns mode. (See the _Mode enum)
+        /// </summary>
         public _Mode Mode
         {
             get
@@ -265,20 +268,27 @@ namespace InternetTime
             }
         }
 
-        // Stratum
+        /// <summary>
+        /// Stratum of the clock. (See the _Stratum enum)
+        /// </summary>
         public _Stratum Stratum
         {
             get
             {
                 byte val = (byte)SNTPData[1];
                 if (val == 0) return _Stratum.Unspecified;
-                else if (val == 1) return _Stratum.PrimaryReference;
-                else if (val <= 15) return _Stratum.SecondaryReference;
-                else return _Stratum.Reserved;
+                else
+                    if (val == 1) return _Stratum.PrimaryReference;
+                    else
+                        if (val <= 15) return _Stratum.SecondaryReference;
+                        else
+                            return _Stratum.Reserved;
             }
         }
 
-        // Poll Interval (in seconds)
+        /// <summary>
+        /// Maximum interval (seconds) between successive messages
+        /// </summary>
         public uint PollInterval
         {
             get
@@ -288,7 +298,9 @@ namespace InternetTime
             }
         }
 
-        // Precision (in seconds)
+        /// <summary>
+        /// Precision (in seconds) of the clock
+        /// </summary>
         public double Precision
         {
             get
@@ -298,7 +310,9 @@ namespace InternetTime
             }
         }
 
-        // Root Delay (in milliseconds)
+        /// <summary>
+        /// Round trip time (in milliseconds) to the primary reference source.
+        /// </summary>
         public double RootDelay
         {
             get
@@ -309,7 +323,9 @@ namespace InternetTime
             }
         }
 
-        // Root Dispersion (in milliseconds)
+        /// <summary>
+        /// Nominal error (in milliseconds) relative to the primary reference source.
+        /// </summary>
         public double RootDispersion
         {
             get
@@ -320,7 +336,9 @@ namespace InternetTime
             }
         }
 
-        // Reference Identifier
+        /// <summary>
+        /// Reference identifier (either a 4 character string or an IP address)
+        /// </summary>
         public string ReferenceID
         {
             get
@@ -371,7 +389,9 @@ namespace InternetTime
             }
         }
 
-        // Reference Timestamp
+        /// <summary>
+        /// The time at which the clock was last set or corrected
+        /// </summary>
         public DateTime ReferenceTimestamp
         {
             get
@@ -383,7 +403,9 @@ namespace InternetTime
             }
         }
 
-        // Originate Timestamp (T1)
+        /// <summary>
+        /// The time (T1) at which the request departed the client for the server
+        /// </summary>
         public DateTime OriginateTimestamp
         {
             get
@@ -392,9 +414,8 @@ namespace InternetTime
             }
         }
 
-        // Receive Timestamp (T2)
         /// <summary>
-        /// Server time at which NTP response was received locally
+        /// The time (T2) at which the request arrived at the server
         /// </summary>
         public DateTime ReceiveTimestamp
         {
@@ -407,9 +428,8 @@ namespace InternetTime
             }
         }
 
-        // Transmit Timestamp (T3)
         /// <summary>
-        /// Server time at which NTP request was send locally
+        /// The time (T3) at which the reply departed the server for client
         /// </summary>
         public DateTime TransmitTimestamp
         {
@@ -426,35 +446,40 @@ namespace InternetTime
             }
         }
 
-        // Destination Timestamp (T4)
         /// <summary>
-        /// Local time when connected.
+        /// Destination Timestamp (T4)
         /// </summary>
         public DateTime DestinationTimestamp;
 
-        // Round trip delay (in milliseconds)
-        public int RoundTripDelay
+        /// <summary>
+        /// The time (in milliseconds) between the departure of request and arrival of reply 
+        /// </summary>
+        public double RoundTripDelay
         {
             get
             {
                 // Thanks to DNH <dnharris@csrlink.net>
                 TimeSpan span = (DestinationTimestamp - OriginateTimestamp) - (ReceiveTimestamp - TransmitTimestamp);
-                return (int)span.TotalMilliseconds;
+                return span.TotalMilliseconds;
             }
         }
 
-        // Local clock offset (in milliseconds)
-        public int LocalClockOffset
+        /// <summary>
+        /// The offset (in milliseconds) of the local clock relative to the primary reference source
+        /// </summary>
+        public double LocalClockOffset
         {
             get
             {
                 // Thanks to DNH <dnharris@csrlink.net>
                 TimeSpan span = (ReceiveTimestamp - OriginateTimestamp) + (TransmitTimestamp - DestinationTimestamp);
-                return (int)(span.TotalMilliseconds / 2);
+                return (span.TotalMilliseconds / 2);
             }
         }
 
-        // Compute date, given the number of milliseconds since January 1, 1900
+        /// <summary>
+        /// Compute date, given the number of milliseconds since January 1, 1900
+        /// </summary>
         private DateTime ComputeDate(ulong milliseconds)
         {
             TimeSpan span = TimeSpan.FromMilliseconds((double)milliseconds);
@@ -463,7 +488,9 @@ namespace InternetTime
             return time;
         }
 
-        // Compute the number of milliseconds, given the offset of a 8-byte array
+        /// <summary>
+        /// Compute the number of milliseconds, given the offset of a 8-byte array
+        /// </summary>
         private ulong GetMilliSeconds(byte offset)
         {
             ulong intpart = 0, fractpart = 0;
@@ -480,7 +507,11 @@ namespace InternetTime
             return milliseconds;
         }
 
-        // Compute the 8-byte array, given the date
+        /// <summary>
+        /// Set the date part of the SNTP data
+        /// </summary>
+        /// <param name="offset">Offset at which the date part of the SNTP data is</param>
+        /// <param name="date">The date</param>
         private void SetDate(byte offset, DateTime date)
         {
             ulong intpart = 0, fractpart = 0;
@@ -505,7 +536,9 @@ namespace InternetTime
             }
         }
 
-        // Initialize the NTPClient data
+        /// <summary>
+        /// Initialize the SNTP client data. Sets up data structure and prepares for connection.
+        /// </summary>
         private void Initialize()
         {
             // Set version number to 4 and Mode to 3 (client)
@@ -524,31 +557,65 @@ namespace InternetTime
             TimeServer = host;
         }
 
-        // Connect to the time server and update system time
-        public void Connect(bool UpdateSystemTime)
+        /// <summary>
+        /// Connects to the time server and populates the data structure.
+        ///	It can also update the system time.
+        /// </summary>
+        /// <param name="TimeOutInterval">Time in milliseconds after which the method returns.</param>
+        /// <param name="UpdateSystemTime">TRUE if the local time should be updated.</param>
+        public void Connect(int TimeOutInterval, bool UpdateSystemTime)
         {
             try
             {
-                // Resolve server address
-                IPHostEntry hostadd = Dns.GetHostEntry(TimeServer);
-                IPEndPoint EPhost = new IPEndPoint(hostadd.AddressList[0], 123);
+                IPEndPoint listenEP = new IPEndPoint(IPAddress.Any, 123);
+                Socket sendSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                IPHostEntry hostEntry = Dns.GetHostEntry(TimeServer);
+                IPEndPoint sendEP = new IPEndPoint(hostEntry.AddressList[0], 123);
+                EndPoint epSendEP = (EndPoint)sendEP;
 
-                //Connect the time server
-                using (UdpClient TimeSocket = new UdpClient())
+                int messageLength = 0;
+                try
                 {
-                    TimeSocket.Connect(EPhost);
-
-                    // Initialize data structure
+                    sendSocket.Bind(listenEP);
                     Initialize();
-                    TimeSocket.Send(SNTPData, SNTPData.Length);
-                    SNTPData = TimeSocket.Receive(ref EPhost);
-                    if (!IsResponseValid())
-                    {
-                        throw new Exception("Invalid response from " + TimeServer);
-                    }
 
-                    DestinationTimestamp = DateTime.Now;
+                    bool messageReceived = false;
+                    int elapsedTime = 0;
+
+                    // Timeout code
+                    while (!messageReceived && (elapsedTime < TimeOutInterval))
+                    {
+                        sendSocket.SendTo(SNTPData, SNTPData.Length, SocketFlags.None, sendEP);
+                        // Check if data has been received by the listening socket and is available to be read
+                        if (sendSocket.Available > 0)
+                        {
+                            messageLength = sendSocket.ReceiveFrom(SNTPData, ref epSendEP);
+                            if (!IsResponseValid())
+                            {
+                                throw new Exception("Invalid response from " + TimeServer);
+                            }
+                            messageReceived = true;
+                            break;
+                        }
+                        // Wait a second
+                        Thread.Sleep(1000);
+                        elapsedTime += 1000;
+                    }
+                    if (!messageReceived)
+                    {
+                        throw new TimeoutException("Timeout whilst trying to connect to " + TimeServer);
+                    }
                 }
+                catch (SocketException e)
+                {
+                    throw new Exception(e.Message);
+                }
+                finally
+                {
+                    sendSocket.Close();
+                }
+
+                DestinationTimestamp = DateTime.Now;
             }
             catch (SocketException e)
             {
@@ -562,7 +629,9 @@ namespace InternetTime
             }
         }
 
-        // Check if the response from server is valid
+        /// <summary>
+        /// Returns true if received data is valid and if comes from a NTP-compliant time server.
+        /// </summary>
         public bool IsResponseValid()
         {
             if (SNTPData.Length < SNTPDataLength || Mode != _Mode.Server)
@@ -575,7 +644,9 @@ namespace InternetTime
             }
         }
 
-        // Converts the object to string
+        /// <summary>
+        /// Returns a string representation of the object
+        /// </summary>
         public override string ToString()
         {
             string str;
@@ -646,7 +717,9 @@ namespace InternetTime
             return str;
         }
 
-        // SYSTEMTIME structure used by SetSystemTime
+        /// <summary>
+        /// SYSTEMTIME structure used by SetSystemTime
+        /// </summary>
         [StructLayoutAttribute(LayoutKind.Sequential)]
         private struct SYSTEMTIME
         {
@@ -660,11 +733,24 @@ namespace InternetTime
             public short milliseconds;
         }
 
+        /// <summary>
+        /// Sets the Local Time. 
+        /// Note that the Local Time is different from the System Time, and DateTime.Now.
+        /// They are different by definition.  DateTime.Now will take the TimeZone and 
+        /// Daylight Savings into account.
+        /// </summary>
+#if !SNTP_WindowsMobile
+        // Compiling for Windows
         [DllImport("kernel32.dll")]
+#else
+        // Compiling for Windows Mobile
+        [DllImport("coredll.dll")]
+#endif
         static extern bool SetLocalTime(ref SYSTEMTIME time);
 
-
-        // Set system time according to transmit timestamp
+        /// <summary>
+        /// Set the LocalTime according to transmit timestamp
+        /// </summary>
         private void SetTime()
         {
             SYSTEMTIME st;
@@ -684,7 +770,9 @@ namespace InternetTime
             SetLocalTime(ref st);
         }
 
-        // The URL of the time server we're connecting to
+        /// <summary>
+        /// The URL of the time server we're connecting to
+        /// </summary>
         private string TimeServer;
     }
 }
