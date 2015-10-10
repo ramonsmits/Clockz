@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Threading;
 
 namespace TimeInfo
@@ -11,17 +8,20 @@ namespace TimeInfo
     {
         static void Main(string[] args)
         {
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            Console.Title = "TimeInfo";
+
             var interval = 10000;//TimeSpan.Parse(args[1]);
 
             var system = Clockz.SystemClock.Instance;
             var stopwatch = new Clockz.StopwatchClock(system);
             stopwatch.UtcNow.AddDays(0);
             stopwatch = new Clockz.StopwatchClock(system);
-            var ntp = new Clockz.SntpClock();
+            var ntp = new Clockz.SntpClock("nas.smigo.nl");
             ntp.UtcNow.AddDays(0);
-            ntp = new Clockz.SntpClock();
+            ntp = new Clockz.SntpClock("nas.smigo.nl");
 
-            Console.Title = "TimeInfo";
+            var startTime = system.UtcNow;
             while (true)
             {
                 try
@@ -34,16 +34,17 @@ namespace TimeInfo
                     var ntpDiff = ntpTime - systemTime;
                     var ntpStopwatchDiff = stopwatchTime - ntpTime;
 
-                    Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+                    var elapsed = systemTime - startTime;
 
                     Console.WriteLine(
-                        "System: {0:T} NTP: {1:T} Stopwatch: {2:T}  System/Stopwatch: {3,7:N}ms  NTP/System: {4,7:N}ms  Stopwatch/NTP: {5,7:N}ms",
+                        "System: {0:T} NTP: {1:T} Stopwatch: {2:T}  System/Stopwatch: {3,7:N}ms  NTP/System: {4,7:N}ms  Stopwatch/NTP: {5,7:N}ms  Elapsed: {6}",
                         systemTime,
                         ntpTime,
                         stopwatchTime,
                         drift.TotalMilliseconds,
                         ntpDiff.TotalMilliseconds,
-                        ntpStopwatchDiff.TotalMilliseconds
+                        ntpStopwatchDiff.TotalMilliseconds,
+                        elapsed
                         );
 
                 }
