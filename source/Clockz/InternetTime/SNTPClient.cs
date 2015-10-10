@@ -210,7 +210,10 @@ namespace InternetTime
         private const byte OffReceiveTimestamp = 32;
         private const byte OffTransmitTimestamp = 40;
 
-        // Leap Indicator
+        /// <summary>
+        /// Warns of an impending leap second to be inserted/deleted in the last
+        /// minute of the current day. (See the _LeapIndicator enum)
+        /// </summary>
         public LeapIndicator LeapIndicator
         {
             get
@@ -229,7 +232,9 @@ namespace InternetTime
             }
         }
 
-        // Version Number
+        /// <summary>
+        /// Version number of the protocol (3 or 4).
+        /// </summary>
         public byte VersionNumber
         {
             get
@@ -240,7 +245,9 @@ namespace InternetTime
             }
         }
 
-        // Mode
+        /// <summary>
+        /// Returns mode. (See the _Mode enum)
+        /// </summary>
         public Mode Mode
         {
             get
@@ -268,7 +275,9 @@ namespace InternetTime
             }
         }
 
-        // Stratum
+        /// <summary>
+        /// Stratum of the clock. (See the _Stratum enum)
+        /// </summary>
         public Stratum Stratum
         {
             get
@@ -281,7 +290,9 @@ namespace InternetTime
             }
         }
 
-        // Poll Interval (in seconds)
+        /// <summary>
+        /// Maximum interval (seconds) between successive messages
+        /// </summary>
         public uint PollIntervalSeconds
         {
             get
@@ -291,7 +302,9 @@ namespace InternetTime
             }
         }
 
-        // Precision (in seconds)
+        /// <summary>
+        /// Precision (in seconds) of the clock
+        /// </summary>
         public double PrecisionSeconds
         {
             get
@@ -301,7 +314,9 @@ namespace InternetTime
             }
         }
 
-        // Root Delay (in milliseconds)
+        /// <summary>
+        /// Round trip time (in milliseconds) to the primary reference source.
+        /// </summary>
         public double RootDelayMilliseconds
         {
             get
@@ -311,7 +326,9 @@ namespace InternetTime
             }
         }
 
-        // Root Dispersion (in milliseconds)
+        /// <summary>
+        /// Nominal error (in milliseconds) relative to the primary reference source.
+        /// </summary>
         public double RootDispersionMilliseconds
         {
             get
@@ -321,7 +338,9 @@ namespace InternetTime
             }
         }
 
-        // Reference Identifier
+        /// <summary>
+        /// Reference identifier (either a 4 character string or an IP address)
+        /// </summary>
         public string ReferenceId
         {
             get
@@ -370,7 +389,9 @@ namespace InternetTime
             }
         }
 
-        // Reference Timestamp
+        /// <summary>
+        /// The time at which the clock was last set or corrected
+        /// </summary>
         public DateTime ReferenceTimestampUtc
         {
             get
@@ -380,7 +401,9 @@ namespace InternetTime
             }
         }
 
-        // Originate Timestamp (T1)
+        /// <summary>
+        /// The time (T1) at which the request departed the client for the server
+        /// </summary>
         public DateTime OriginateTimestamp
         {
             get
@@ -402,9 +425,8 @@ namespace InternetTime
             }
         }
 
-        // Transmit Timestamp (T3)
         /// <summary>
-        /// Server time at which NTP request was send locally
+        /// The time (T3) at which the reply departed the server for client
         /// </summary>
         public DateTime TransmitTimestamp
         {
@@ -419,13 +441,14 @@ namespace InternetTime
             }
         }
 
-        // Destination Timestamp (T4)
         /// <summary>
-        /// Local UTC time, set when sync completes.
+        /// Destination Timestamp (T4)
         /// </summary>
         public DateTime DestinationTimestamp { get; private set; }
 
-        // Round trip delay (in milliseconds)
+        /// <summary>
+        /// The time (in milliseconds) between the departure of request and arrival of reply 
+        /// </summary>
         public double RoundTripDelayMilliseconds
         {
             get
@@ -436,7 +459,9 @@ namespace InternetTime
             }
         }
 
-        // Local clock offset (in milliseconds)
+        /// <summary>
+        /// The offset (in milliseconds) of the local clock relative to the primary reference source
+        /// </summary>
         public double LocalClockOffsetMilliseconds
         {
             get
@@ -447,14 +472,18 @@ namespace InternetTime
             }
         }
 
-        // Compute date, given the number of milliseconds since January 1, 1900
+        /// <summary>
+        /// Compute date, given the number of milliseconds since January 1, 1900
+        /// </summary>
         private DateTime ComputeDate(ulong milliseconds)
         {
             TimeSpan span = TimeSpan.FromMilliseconds(milliseconds);
             return _startOfCentury + span;
         }
 
-        // Compute the number of milliseconds, given the offset of a 8-byte array
+        /// <summary>
+        /// Compute the number of milliseconds, given the offset of a 8-byte array
+        /// </summary>
         private ulong GetMilliseconds(byte offset)
         {
             ulong intpart = 0, fractpart = 0;
@@ -473,7 +502,11 @@ namespace InternetTime
 
         readonly DateTime _startOfCentury = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);	// January 1, 1900 12:00 AM
 
-        // Compute the 8-byte array, given the date
+        /// <summary>
+        /// Set the date part of the SNTP data
+        /// </summary>
+        /// <param name="offset">Offset at which the date part of the SNTP data is</param>
+        /// <param name="date">The date</param>
         private void SetDate(byte offset, DateTime date)
         {
             ulong intPart, fractPart;
@@ -497,7 +530,9 @@ namespace InternetTime
             }
         }
 
-        // Initialize the NTPClient data
+        /// <summary>
+        /// Initialize the SNTP client data. Sets up data structure and prepares for connection.
+        /// </summary>
         private void Initialize()
         {
             // Set version number to 4 and Mode to 3 (client)
@@ -537,7 +572,12 @@ namespace InternetTime
         private IPEndPoint _epHost;
         private readonly bool _updateAddress;
 
-        // Connect to the time server and update system time
+        /// <summary>
+        /// Connects to the time server and populates the data structure.
+        ///	It can also update the system time.
+        /// </summary>
+        /// <param name="TimeOutInterval">Time in milliseconds after which the method returns.</param>
+        /// <param name="UpdateSystemTime">TRUE if the local time should be updated.</param>
         public void Connect()
         {
             try
@@ -573,13 +613,17 @@ namespace InternetTime
                 throw new InvalidOperationException("Error retrieving NTP timestamp.", e);
             }
         }
-        // Check if the response from server is valid
+        /// <summary>
+        /// Returns true if received data is valid and if comes from a NTP-compliant time server.
+        /// </summary>
         public bool IsResponseValid()
         {
             return _sntpData.Length >= SntpDataLength && Mode == Mode.Server;
         }
 
-        // Converts the object to string
+        /// <summary>
+        /// Returns a string representation of the object
+        /// </summary>
         public override string ToString()
         {
             var str = new StringBuilder();
