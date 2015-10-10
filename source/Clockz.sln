@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clockz", "Clockz\Clockz.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clockz.Tests", "Clockz.Tests\Clockz.Tests.csproj", "{F0BB302F-1E48-4D0C-9D78-EB0BA4F9832A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeInfo", TimeInfo\TimeInfo.csproj", "{6B41BEA5-E8D9-4A11-9FE5-E97EDB489FA3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeInfo", "TimeInfo\TimeInfo.csproj", "{6B41BEA5-E8D9-4A11-9FE5-E97EDB489FA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
