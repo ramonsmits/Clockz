@@ -5,17 +5,17 @@ namespace Clockz
     public class CompensatedClock : BaseClock
     {
         readonly IClock Source;
-        readonly long DaylyCorrectionInTicks;
+        readonly long DailyCorrectionInTicks;
         readonly long TicksStart;
 
         /// <summary>
         /// Creates a CompensatedClock instance.
         /// </summary>
-        /// <param name="daylyCorrectionInTicks">The time span to add or substract from the current system time.</param>
-        public CompensatedClock(IClock source, long daylyCorrectionInTicks)
+        /// <param name="dailyCorrectionInTicks">The time span to add or substract from the current system time.</param>
+        public CompensatedClock(IClock source, long dailyCorrectionInTicks)
         {
             Source = source;
-            DaylyCorrectionInTicks = daylyCorrectionInTicks;
+            DailyCorrectionInTicks = dailyCorrectionInTicks;
             TicksStart = source.UtcNow.Ticks;
         }
 
@@ -25,7 +25,7 @@ namespace Clockz
             {
                 long current = Source.UtcNow.Ticks;
                 long passedTicks = current - TicksStart;
-                long correctionFactor = DaylyCorrectionInTicks * passedTicks / TimeSpan.TicksPerDay;
+                long correctionFactor = DailyCorrectionInTicks * passedTicks / TimeSpan.TicksPerDay;
 
                 return new DateTime(current + correctionFactor, DateTimeKind.Utc);
             }

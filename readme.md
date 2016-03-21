@@ -1,8 +1,15 @@
 
 # About
 
-Clockz is a utility library that provides a set of clock implementations. Some implementations are more targeted for testing and other for production usage. All current implemenations are created due to specific problem at the time and I thought that this code could be useful to others.
+Clockz is a utility library that provides a set of clock and clock tick implementations. Some implementations are more targeted for testing and other for production usage. All current implemenations are created due to specific problem at the time and I thought that this code could be useful to others.
 
+It has two abtractions, `IClock` and `ITicks` but both are different enough to make a distinction.
+
+The `IClock` abstraction is about time. Most developers see time as something precise but the thruth is time is everything but precise. A computure clock is inaccurate and constantly corrected. This is caused by leap years, daylight saving time, clock drift for remote time server (NTP) corrections, power saving features and virtualization. So a clock can be used to check, how many hours, days, months or years have passed where in most circumstances (unless you work at NASA) you usually do not care about the fractions or accuracy.
+
+On the other hand there is the need for measuring things like how long did to send an email, process 1,000 items and that is where `ITicks` is meant for. Ticks are used to measure time between two occurences. Yes, you could use clocks for that in certain conditions but as said, clocks are constantly adjusted. So if something took 1.5 days, was that with or without clock drift and / or daylight saving time correction?
+
+Very often these are combined. Like, at March 21th at 13:37 the system sent an email and took Y milliseconds. Noticed thatI didn't mention the seconds and milliseconds in the timestamp?
 
 # Example
 
@@ -51,6 +58,23 @@ This clock is initialized with a fixed value. This is only usefull to unit test 
 
 This clock is initialized with a couple of DateTime values and can only be usefull in unittests to test for age cases.
 
+# Current ticks implementations
+
+When choosing a ticks implementation you basically decide if you need high accuracy and / or low latency.
+
+## StopwatchTicks
+
+The `StopwatchTicks` uses the `Stopwatch` from the diagnostics namespace. It is the most accurate timing source and especially useful for measuring tiny tasks.
+
+## ClockTicks
+
+The clock implementation is there more for environments to make it explicit that time is measured even when using clocks. Its not very suitable to measure tiny tasks due to the latency.
+
+## EnvironmentTicks
+
+This relies on the environment ticks. It has the drawback that is uses a `int` and this value becomes negative in the .net framework API. The Clockz implementation cast it to a `uint` to fix this rollover issue as the `ITicks` interface uses a `long`.
+
+If it is running on a system that supports `GetTickCount64` then it will use that to retrieve the environment ticks.
 
 # Usage
 
